@@ -8,6 +8,7 @@ import nltk
 import json
 
 import numpy as np
+import nltk
 
 from polyglot.base import Sequence, TextFile, TextFiles
 from polyglot.detect import Detector, Language
