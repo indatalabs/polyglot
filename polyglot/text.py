@@ -4,7 +4,6 @@
 from collections import defaultdict
 
 import sys
-import nltk
 import json
 
 import numpy as np
@@ -33,7 +32,7 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
   :param text: A string.
   """
 
-  def __init__(self, text):
+  def __init__(self, text, lang_code=None, word_tokenizer=None):
     if not isinstance(text, basestring):
         raise TypeError('The `text` argument passed to `__init__(text)` '
                         'must be a unicode string, not {0}'.format(type(text)))
@@ -42,7 +41,16 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
       self.raw = text.decode("utf-8")
 
     self.string = self.raw
-    self.__lang = None
+
+    if lang_code is not None:
+        self.__lang = Language.from_code(lang_code)
+    else:
+        self.__lang = self.detected_languages.language
+
+    if word_tokenizer is not None:
+        self.__word_tokenizer = word_tokenizer
+    else:
+        self.__word_tokenizer = WordTokenizer(locale=self.language.code)
 
   @cached_property
   def detected_languages(self):
@@ -50,8 +58,6 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
 
   @property
   def language(self):
-    if self.__lang is None:
-      self.__lang = self.detected_languages.language
     return self.__lang
 
   @language.setter
@@ -60,8 +66,7 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
 
   @property
   def word_tokenizer(self):
-    word_tokenizer = WordTokenizer(locale=self.language.code)
-    return word_tokenizer
+    return self.__word_tokenizer
 
   @property
   def words(self):
@@ -463,8 +468,9 @@ class Sentence(BaseBlob):
                       length of the sentence - 1.
   """
 
-  def __init__(self, sentence, start_index=0, end_index=None):
-    super(Sentence, self).__init__(sentence)
+  def __init__(self, sentence, start_index=0, end_index=None,
+               lang_code=None, word_tokenizer=None):
+    super(Sentence, self).__init__(sentence, lang_code, word_tokenizer)
     #: The start index within a Text
     self.start = start_index
     #: The end index within a Text
@@ -486,8 +492,13 @@ class Text(BaseBlob):
   """.
   """
 
-  def __init__(self, text):
-    super(Text, self).__init__(text)
+  def __init__(self, text, lang_code=None, word_tokenizer=None, sent_tokenizer=None):
+    super(Text, self).__init__(text, lang_code, word_tokenizer)
+
+    if sent_tokenizer is not None:
+        self.__sent_tokenizer = sent_tokenizer
+    else:
+        self.__sent_tokenizer = SentenceTokenizer(locale=self.language.code)
 
   def __str__(self):
     if len(self.raw) > 1000:
@@ -530,14 +541,18 @@ class Text(BaseBlob):
     '''Returns a list of Sentence objects from the raw text.
     '''
     sentence_objects = []
-    sent_tokenizer = SentenceTokenizer(locale=self.language.code)
-    seq = Sequence(self.raw)
-    seq = sent_tokenizer.transform(seq)
+    seq = self.__sent_tokenizer.transform(Sequence(self.raw))
     for start_index, end_index in zip(seq.idx[:-1], seq.idx[1:]):
       # Sentences share the same models as their parent blob
       sent = seq.text[start_index: end_index].strip()
-      if not sent: continue
-      s = Sentence(sent, start_index=start_index, end_index=end_index)
-      s.detected_languages = self.detected_languages
-      sentence_objects.append(s)
+
+      if sent:
+        s = Sentence(sent, start_index=start_index, end_index=end_index,
+                     lang_code=self.language.code,
+                     word_tokenizer=self.word_tokenizer)
+
+        s.detected_languages = self.detected_languages
+
+        sentence_objects.append(s)
+
     return sentence_objects
