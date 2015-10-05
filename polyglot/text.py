@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
+
 import sys
+import nltk
+import json
 
 import numpy as np
 
@@ -17,7 +21,7 @@ from polyglot.tokenize import SentenceTokenizer, WordTokenizer
 from polyglot.transliteration import Transliterator
 from polyglot.utils import _print
 
-from .mixins import basestring
+from polyglot.mixins import basestring
 
 import six
 from six import text_type as unicode
@@ -89,7 +93,7 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
     """Return the polarity score as a float within the range [-1.0, 1.0]
     """
     scores = [w.polarity for w in self.words if w.polarity != 0]
-    return sum(scores) / float(len(scores))
+    return sum(scores) / float(len(scores)) if scores else 0.0
 
   @cached_property
   def ne_chunker(self):
@@ -397,7 +401,7 @@ class Chunk(WordList):
     #: The start index within a Text
     self.start = start_index
     #: The end index within a Text
-    self.end = end_index or len(sentence) - 1
+    self.end = end_index or len(subsequence) - 1
     class_name = self.__class__.__name__
     self.tag = tag if tag else class_name
 
@@ -431,7 +435,7 @@ class Chunk(WordList):
       sum_neg = sum(non_entity_polarities == -1)
     else:
       polarities = np.array([w.polarity for w in text.words])
-      polarized_positions = np.argwhere(polarities != 0)[0]
+      polarized_positions = np.argwhere(polarities != 0).flatten()
       polarized_non_entity_positions = non_entity_positions.intersection(polarized_positions)
       sentence_len = len(text.words)
       for i in polarized_non_entity_positions:
