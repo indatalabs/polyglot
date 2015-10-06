@@ -46,14 +46,14 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
     self.string = self.raw
 
     if lang_code is not None:
-        self.__lang = Language.from_code(lang_code)
+      self.__lang = Language.from_code(lang_code)
     else:
-        self.__lang = self.detected_languages.language
+      self.__lang = self.detected_languages.language
 
     if word_tokenizer is not None:
-        self.__word_tokenizer = word_tokenizer
+      self.__word_tokenizer = word_tokenizer
     else:
-        self.__word_tokenizer = WordTokenizer(locale=self.language.code)
+      self.__word_tokenizer = WordTokenizer(locale=self.language.code)
 
     if sentiment_weighting is not None:
       self.__sentiment_weighting = sentiment_weighting
@@ -279,7 +279,6 @@ class Word(unicode):
 
   def __str__(self):
     return self.string
-
 
   @cached_property
   def morpheme_analyzer(self):
@@ -570,7 +569,8 @@ class Text(BaseBlob):
       if sent:
         s = Sentence(sent, start_index=start_index, end_index=end_index,
                      lang_code=self.language.code,
-                     word_tokenizer=self.word_tokenizer)
+                     word_tokenizer=self.word_tokenizer,
+                     sentiment_weighting=self.sentiment_weighting)
 
         s.detected_languages = self.detected_languages
 
