@@ -21,7 +21,17 @@ from .utils import _open
 if "~" in data_path:
   data_path = path.expanduser(data_path)
 
-polyglot_path = path.join(path.abspath(data_path), "polyglot_data")
+
+def get_polyglot_path(data_subfolder="polyglot_data"):
+  user_data_path = path.join(data_path, data_subfolder)
+  script_dir = path.dirname(__file__)
+  internal_data_path = path.join(script_dir, data_subfolder)
+  if not path.exists(user_data_path) and path.exists(internal_data_path):
+    return internal_data_path
+  return user_data_path
+
+
+polyglot_path = path.abspath(get_polyglot_path())
 
 
 resource_dir = {
