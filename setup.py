@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
+from os import path
 import sys
-
+from collections import defaultdict
 
 try:
     from setuptools import setup
@@ -26,6 +27,12 @@ test_requirements = [
     # TODO: put package test requirements here
 ]
 
+
+package_data = defaultdict(list)
+if path.exists(path.join(path.dirname(__file__), 'polyglot', 'polyglot_data')):
+    package_data['polyglot'].append('polyglot_data/*')
+
+
 setup(
     name='polyglot',
     version='15.10.03',
@@ -45,6 +52,7 @@ setup(
             'polyglot = polyglot.__main__:main',
         ],
     },
+    package_data=package_data,
     include_package_data=True,
     install_requires=requirements,
     license="GPLv3",
