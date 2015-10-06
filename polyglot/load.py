@@ -68,6 +68,8 @@ def load_embeddings(lang="en", task="embeddings", type="cw"):
     e.apply_expansion(DigitExpander)
   if type == "sgns":
     e.apply_expansion(CaseExpander)
+  if task == "sentiment":
+    e.apply_expansion(CaseExpander)
   return e
 
 
