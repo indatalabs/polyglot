@@ -22,6 +22,7 @@ from polyglot.transliteration import Transliterator
 from polyglot.utils import _print
 
 from polyglot.mixins import basestring
+from sentiment.base import long_text_weighting
 
 import six
 from six import text_type as unicode
@@ -33,7 +34,8 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
   :param text: A string.
   """
 
-  def __init__(self, text):
+  def __init__(self, text, lang_code=None, word_tokenizer=None,
+               sentiment_weighting=None):
     if not isinstance(text, basestring):
         raise TypeError('The `text` argument passed to `__init__(text)` '
                         'must be a unicode string, not {0}'.format(type(text)))
@@ -43,6 +45,11 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
 
     self.string = self.raw
     self.__lang = None
+
+    if sentiment_weighting is not None:
+      self.__sentiment_weighting = sentiment_weighting
+    else:
+      self.__sentiment_weighting = long_text_weighting
 
   @cached_property
   def detected_languages(self):
@@ -62,6 +69,10 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
   def word_tokenizer(self):
     word_tokenizer = WordTokenizer(locale=self.language.code)
     return word_tokenizer
+
+  @property
+  def sentiment_weighting(self):
+    return self.__sentiment_weighting
 
   @property
   def words(self):
@@ -424,11 +435,14 @@ class Chunk(WordList):
 
   def _sentiment(self, distance=True):
     """Calculates the sentiment of an entity as it appears in text."""
-    sum_pos = 0
-    sum_neg = 0
+    sum_pos, sum_neg = 0, 0
+
     text = self.parent
+    sentiment_weighting = self.parent.sentiment_weighting
+
     entity_positions = range(self.start, self.end)
     non_entity_positions = set(range(len(text.words))).difference(entity_positions)
+
     if not distance:
       non_entity_polarities = np.array([text.words[i].polarity for i in non_entity_positions])
       sum_pos = sum(non_entity_polarities == 1)
@@ -438,6 +452,7 @@ class Chunk(WordList):
       polarized_positions = np.argwhere(polarities != 0).flatten()
       polarized_non_entity_positions = non_entity_positions.intersection(polarized_positions)
 
+      words_total = len(text.words)
       for i in polarized_non_entity_positions:
         if i < self.start:
           words_between = self.start - i - 1
@@ -445,10 +460,12 @@ class Chunk(WordList):
           # here i > self.end
           words_between = i - self.end
 
+        sent_weight = sentiment_weighting(words_between, words_total)
+
         if text.words[i].polarity == 1:
-          sum_pos += 1.0 - words_between / (2.0 * len(text.words))
+          sum_pos += sent_weight
         else:
-          sum_neg += 1.0 - words_between / (2.0 * len(text.words))
+          sum_neg += sent_weight
 
     return (sum_pos, sum_neg)
 
@@ -463,8 +480,10 @@ class Sentence(BaseBlob):
                       length of the sentence - 1.
   """
 
-  def __init__(self, sentence, start_index=0, end_index=None):
-    super(Sentence, self).__init__(sentence)
+  def __init__(self, sentence, start_index=0, end_index=None,
+               lang_code=None, word_tokenizer=None, sentiment_weighting=None):
+    super(Sentence, self).__init__(sentence, lang_code,
+                                   word_tokenizer, sentiment_weighting)
     #: The start index within a Text
     self.start = start_index
     #: The end index within a Text
@@ -486,8 +505,15 @@ class Text(BaseBlob):
   """.
   """
 
-  def __init__(self, text):
-    super(Text, self).__init__(text)
+  def __init__(self, text, lang_code=None, word_tokenizer=None,
+               sentiment_weighting=None, sent_tokenizer=None):
+    super(Text, self).__init__(text, lang_code,
+                               word_tokenizer, sentiment_weighting)
+
+    if sent_tokenizer is not None:
+        self.__sent_tokenizer = sent_tokenizer
+    else:
+        self.__sent_tokenizer = SentenceTokenizer(locale=self.language.code)
 
   def __str__(self):
     if len(self.raw) > 1000:
