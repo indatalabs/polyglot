@@ -437,13 +437,19 @@ class Chunk(WordList):
       polarities = np.array([w.polarity for w in text.words])
       polarized_positions = np.argwhere(polarities != 0).flatten()
       polarized_non_entity_positions = non_entity_positions.intersection(polarized_positions)
-      sentence_len = len(text.words)
+
       for i in polarized_non_entity_positions:
-        min_dist = min(abs(self.start - i), abs(self.end - i))
-        if text.words[i].polarity == 1:
-          sum_pos += 1.0 - (min_dist - 1.0) / (2.0 * sentence_len)
+        if i < self.start:
+          words_between = self.start - i - 1
         else:
-          sum_neg += 1.0 - (min_dist - 1.0) / (2.0 *sentence_len)
+          # here i > self.end
+          words_between = i - self.end
+
+        if text.words[i].polarity == 1:
+          sum_pos += 1.0 - words_between / (2.0 * len(text.words))
+        else:
+          sum_neg += 1.0 - words_between / (2.0 * len(text.words))
+
     return (sum_pos, sum_neg)
 
 
