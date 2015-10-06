@@ -30,7 +30,7 @@ test_requirements = [
 
 package_data = defaultdict(list)
 if path.exists(path.join(path.dirname(__file__), 'polyglot', 'polyglot_data')):
-    package_data['polyglot'].append('polyglot_data/*')
+    package_data['polyglot'].append('polyglot_data/*/*.tar.bz2')
 
 
 setup(
