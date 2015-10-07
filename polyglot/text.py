@@ -22,7 +22,7 @@ from polyglot.transliteration import Transliterator
 from polyglot.utils import _print
 
 from polyglot.mixins import basestring
-from sentiment.base import long_text_weighting
+from polyglot.sentiment.base import long_text_weighting
 
 import six
 from six import text_type as unicode
