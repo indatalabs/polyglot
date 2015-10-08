@@ -22,7 +22,8 @@ from polyglot.transliteration import Transliterator
 from polyglot.utils import _print
 
 from polyglot.mixins import basestring
-from sentiment.base import long_text_weighting
+from polyglot.text_utils import PUNCTUATION_SET
+from polyglot.sentiment.base import long_text_weighting
 
 import six
 from six import text_type as unicode
@@ -87,7 +88,8 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
     property.
     :returns: A :class:`WordList <WordList>` of word tokens.
     """
-    return self.tokens
+    words = filter(lambda token: token not in PUNCTUATION_SET, self.tokens)
+    return WordList(words, parent=self, language=self.language.code)
 
   @cached_property
   def tokens(self):
@@ -138,22 +140,7 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
   @cached_property
   def entities(self):
     """Returns a list of entities for this blob."""
-    start = 0
-    end = 0
-    prev_tag = u'O'
-    chunks = []
-    for i, (w, tag) in enumerate(self.ne_chunker.annotate(self.words)):
-      if tag != prev_tag:
-        if prev_tag == u'O':
-          start = i
-        else:
-          chunks.append(Chunk(self.words[start: i], start, i, tag=prev_tag,
-                              parent=self))
-        prev_tag = tag
-    if tag != u'O':
-      chunks.append(Chunk(self.words[start: i+1], start, i+1, tag=tag,
-                          parent=self))
-    return chunks
+    raise NotImplementedError()
 
   @cached_property
   def pos_tags(self):
@@ -495,6 +482,26 @@ class Sentence(BaseBlob):
     #: The end index within a Text
     self.end = end_index or len(sentence) - 1
 
+  @cached_property
+  def entities(self):
+    """Returns a list of entities for this sentence."""
+    start = 0
+    end = 0
+    prev_tag = u'O'
+    chunks = []
+    for i, (w, tag) in enumerate(self.ne_chunker.annotate(self.words)):
+      if tag != prev_tag:
+        if prev_tag == u'O':
+          start = i
+        else:
+          chunks.append(Chunk(self.words[start: i], start, i, tag=prev_tag,
+                              parent=self))
+        prev_tag = tag
+    if tag != u'O':
+      chunks.append(Chunk(self.words[start: i+1], start, i+1, tag=tag,
+                          parent=self))
+    return chunks
+
   @property
   def dict(self):
     '''The dict representation of this sentence.'''
@@ -536,6 +543,16 @@ class Text(BaseBlob):
   def raw_sentences(self):
     """List of strings, the raw sentences in the blob."""
     return [sentence.raw for sentence in self.sentences]
+
+  @property
+  def entities(self):
+    """Returns a list of entities for this text."""
+    all_entities = []
+
+    for sent in self.sentences:
+      all_entities.extend(sent.entities)
+
+    return all_entities
 
   @property
   def serialized(self):
