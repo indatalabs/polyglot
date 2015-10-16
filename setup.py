@@ -45,6 +45,7 @@ setup(
                 'polyglot.detect',
                 'polyglot.tokenize',
                 'polyglot.mapping',
+                'polyglot.sentiment',
                 'polyglot.tag',
                 'polyglot.transliteration'],
     entry_points={
