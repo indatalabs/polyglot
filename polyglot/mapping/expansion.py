@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import unicode_literals
+
 from .base import OrderedVocabulary
 from collections import defaultdict
 from six import iteritems
