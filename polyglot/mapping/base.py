@@ -6,6 +6,7 @@
 from io import open, StringIO
 from collections import Counter
 import os
+import codecs
 from concurrent.futures import ProcessPoolExecutor
 
 import six
@@ -253,3 +254,82 @@ class CountedVocabulary(OrderedVocabulary):
     word_count = [x.strip().split() for x in _open(filename, 'r').read().splitlines()]
     word_count = {w:int(c) for w,c in word_count}
     return CountedVocabulary(word_count=word_count)
+
+
+class IDFVocabulary(OrderedVocabulary):
+  """ List of words and estimated IDF sorted according to IDF.
+  """
+
+  def __init__(self, word_idf_map=None):
+    if isinstance(word_idf_map, dict):
+      word_idf_map = iteritems(word_idf_map)
+
+    sorted_data = sorted(word_idf_map, key=lambda x: x[1], reverse=True)
+    words = [word for word, idf_weight in sorted_data]
+
+    super(IDFVocabulary, self).__init__(words=words)
+    self.word_idf = dict(sorted_data)
+
+  def idf(self, word):
+    """ Returns IDF for specified word.
+    :param word: word (unicode)
+    :return: estimated idf weight (float)
+    """
+    result = None
+
+    if word in self.word_idf:
+      result = self.word_idf[word]
+
+    return result
+
+  def most_rare(self, k):
+    """ Returns a vocabulary with the most rare `k` words according to IDF.
+
+    Args:
+      k (integer): specifies the top k words to be returned.
+    """
+    words_idf = {w: self.word_idf[w] for w in self.words[:k]}
+    return IDFVocabulary(word_idf_map=words_idf)
+
+  def most_common(self, k):
+    """ Returns a vocabulary with the most common `k` words according to IDF.
+        May be useful for possible stopwords extraction.
+
+    Args:
+      k (integer): specifies the top k words to be returned.
+    """
+    words_idf = {w: self.word_idf[w] for w in self.words[-k:]}
+    return IDFVocabulary(word_idf_map=words_idf)
+
+  def __unicode__(self):
+    return u"\n".join([u"{}\t{}".format(w,self.word_idf[w]) for w in self.words])
+
+  def __delitem__(self, key):
+    super(IDFVocabulary, self).__delitem__(key)
+    self.word_idf = {w: self.word_idf[w] for w in self}
+
+  def getstate(self):
+    words = list(self.words)
+    counts = [self.word_idf[w] for w in words]
+    return words, counts
+
+  def to_vocabfile(self, filename):
+    """ Save current vocabulary word-weight pairs to text file. """
+    with codecs.open(filename, mode='w', encoding='utf-8') as vocab_file:
+      for word, idf_weight in iteritems(self.word_idf):
+        vocab_file.write("{} {}\n".format(word, idf_weight))
+
+  @classmethod
+  def from_vocabfile(cls, filename):
+    """ Construct a IDFVocabulary out of a vocabulary file.
+
+    Note:
+      File has the following format word1 idf1
+                                    word2 idf2
+    """
+    opened_file = codecs.open(filename, mode='r', encoding='utf-8')
+
+    word_idf_pairs = [x.strip().split() for x in opened_file.read().splitlines()]
+    word_idf_pairs = {word: float(idf_weight) for word, idf_weight in word_idf_pairs}
+
+    return cls(word_idf_map=word_idf_pairs)
